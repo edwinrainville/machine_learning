@@ -6,7 +6,7 @@ from utils import problem
 
 def main():
     required_std = 0.0025
-    n = int(np.ceil(1.0 s/ (required_std * 2))) ** 2
+    n = int(np.ceil(1.0 / (required_std * 2))) ** 2
     print(f'n = {n}')
     ks = [1, 8, 64, 512]
     for k in ks:
