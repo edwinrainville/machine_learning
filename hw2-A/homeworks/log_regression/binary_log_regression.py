@@ -45,7 +45,7 @@ class BinaryLogReg:
         # Fill in with matrix with the correct shape
         self.weight: np.ndarray = None  # type: ignore
         self.bias: float = 0.0
-        raise NotImplementedError("Your Code Goes Here")
+        # raise NotImplementedError("Your Code Goes Here")
 
     @problem.tag("hw2-A")
     def mu(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -64,7 +64,8 @@ class BinaryLogReg:
         Returns:
             np.ndarray: An `(n, )` vector containing mu_i for i^th element.
         """
-        raise NotImplementedError("Your Code Goes Here")
+        exp_arg = -y * (self.bias + np.matmul(X, self.weight))
+        return 1/(1 + np.exp(exp_arg))
 
     @problem.tag("hw2-A")
     def loss(self, X: np.ndarray, y: np.ndarray) -> float:
@@ -80,7 +81,11 @@ class BinaryLogReg:
         Returns:
             float: Loss given X, y, self.weight, self.bias and self._lambda
         """
-        raise NotImplementedError("Your Code Goes Here")
+        n = y.size
+        term_1 = (1/n) * np.sum(np.log(1 + np.exp(-y*(self.bias + np.matmul(X, self.weight)))))
+        term_2 = self._lambda * np.sum(self.weight**2)
+        return term_1 + term_2
+
 
     @problem.tag("hw2-A")
     def gradient_J_weight(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -95,7 +100,11 @@ class BinaryLogReg:
         Returns:
             np.ndarray: An `(d, )` vector which represents gradient of loss J with respect to self.weight.
         """
-        raise NotImplementedError("Your Code Goes Here")
+        mu_vec = self.mu(X, y)
+        n = y.size
+        term_1 = (1/n) * np.matmul(np.multiply((mu_vec-1), y), X)
+        return term_1 + (2 * self._lambda * self.weight)
+        
 
     @problem.tag("hw2-A")
     def gradient_J_bias(self, X: np.ndarray, y: np.ndarray) -> float:
@@ -111,7 +120,9 @@ class BinaryLogReg:
         Returns:
             float: A number that represents gradient of loss J with respect to self.bias.
         """
-        raise NotImplementedError("Your Code Goes Here")
+        mu_vec = self.mu(X, y)
+        n = y.size
+        return (1/n) * (np.dot(mu_vec, y) - np.sum(y))
 
     @problem.tag("hw2-A")
     def predict(self, X: np.ndarray) -> np.ndarray:
@@ -125,7 +136,7 @@ class BinaryLogReg:
         Returns:
             np.ndarray: An `(n, )` array of either -1s or 1s representing guess for each observation.
         """
-        raise NotImplementedError("Your Code Goes Here")
+        return np.sign(self.bias + np.matmul(X, self.weight))
 
     @problem.tag("hw2-A")
     def misclassification_error(self, X: np.ndarray, y: np.ndarray) -> float:
@@ -142,7 +153,9 @@ class BinaryLogReg:
         Returns:
             float: percentage of times prediction did not match target, given an observation (i.e. misclassification error).
         """
-        raise NotImplementedError("Your Code Goes Here")
+        num_misclassified = np.where(y != self.predict(X))[0].size
+        n = y.size
+        return num_misclassified/n
 
     @problem.tag("hw2-A")
     def step(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 1e-4):
@@ -158,7 +171,8 @@ class BinaryLogReg:
             learning_rate (float, optional): Learning rate of SGD/GD algorithm.
                 Defaults to 1e-4.
         """
-        raise NotImplementedError("Your Code Goes Here")
+        self.weight = self.weight - learning_rate * self.gradient_J_weight(X, y)
+        self.bias = self.bias - learning_rate * self.gradient_J_bias(X, y)
 
     @problem.tag("hw2-A", start_line=7)
     def train(
