@@ -230,26 +230,52 @@ class BinaryLogReg:
             "test_losses": [],
             "test_errors": [],
         }
-        raise NotImplementedError("Your Code Goes Here")
+        n, d = X_train.shape
+        self.weight = np.zeros(d)
+        for epoch in range(epochs):
+            batch_inds = RNG.choice(np.arange(n), size=batch_size)
+            self.step(X_train[batch_inds, :], y_train[batch_inds], learning_rate=learning_rate)
 
+            # Compute the losses and errors
+            result["train_losses"].append(self.loss(X_train, y_train))
+            result["train_errors"].append(self.misclassification_error(X_train, y_train))
+            result["test_losses"].append(self.loss(X_test, y_test))
+            result["test_errors"].append(self.misclassification_error(X_test, y_test))
 
-if __name__ == "__main__":
-    model = BinaryLogReg()
-    (x_train, y_train), (x_test, y_test) = load_2_7_mnist()
-    history = model.train(x_train, y_train, x_test, y_test)
-
+        return result
+    
+def plot_loss_and_error(history):
+    """
+    Plots the loss and error as a function of the epochs
+    """
     # Plot losses
-    plt.plot(history["train_losses"], label="Train")
-    plt.plot(history["test_losses"], label="Test")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.legend()
-    plt.show()
+    fig, (ax1, ax2) = plt.subplots(nrows=2)
+    ax1.plot(history["train_losses"], label="Train")
+    ax1.plot(history["test_losses"], label="Test")
+    ax1.set_xlabel("Epochs")
+    ax1.set_ylabel("Loss")
+    ax1.legend()
 
     # Plot error
-    plt.plot(history["train_errors"], label="Train")
-    plt.plot(history["test_errors"], label="Test")
-    plt.xlabel("Epochs")
-    plt.ylabel("Misclassification Error")
-    plt.legend()
+    ax2.plot(history["train_errors"], label="Train")
+    ax2.plot(history["test_errors"], label="Test")
+    ax2.set_xlabel("Epochs")
+    ax2.set_ylabel("Misclassification Error")
+    ax2.legend()
     plt.show()
+    
+if __name__ == "__main__":
+    model = BinaryLogReg(_lambda=0.1)
+    (x_train, y_train), (x_test, y_test) = load_2_7_mnist()
+    
+    # Gradient Descent 
+    history_gd = model.train(x_train, y_train, x_test, y_test, learning_rate=0.01, epochs=500, batch_size=x_train.shape[0])
+    plot_loss_and_error(history_gd)
+
+    # Stochastic Gradient Descent - Batch Size 1
+    history_sgd_batch1 = model.train(x_train, y_train, x_test, y_test, learning_rate=0.01, epochs=500, batch_size=1)
+    plot_loss_and_error(history_sgd_batch1)
+
+     # Stochastic Gradient Descent - Batch Size 100
+    history_sgd_batch100 = model.train(x_train, y_train, x_test, y_test, learning_rate=0.01, epochs=500, batch_size=100)
+    plot_loss_and_error(history_sgd_batch100)
