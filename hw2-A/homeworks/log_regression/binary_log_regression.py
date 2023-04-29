@@ -233,8 +233,9 @@ class BinaryLogReg:
         n, d = X_train.shape
         self.weight = np.zeros(d)
         for epoch in range(epochs):
-            batch_inds = RNG.choice(np.arange(n), size=batch_size)
-            self.step(X_train[batch_inds, :], y_train[batch_inds], learning_rate=learning_rate)
+            for batch in range(num_batches):
+                batch_inds = RNG.choice(np.arange(n), size=batch_size)
+                self.step(X_train[batch_inds, :], y_train[batch_inds], learning_rate=learning_rate)
 
             # Compute the losses and errors
             result["train_losses"].append(self.loss(X_train, y_train))
@@ -244,7 +245,7 @@ class BinaryLogReg:
 
         return result
     
-def plot_loss_and_error(history):
+def plot_loss_and_error(history, learning_rate):
     """
     Plots the loss and error as a function of the epochs
     """
@@ -254,6 +255,7 @@ def plot_loss_and_error(history):
     ax1.plot(history["test_losses"], label="Test")
     ax1.set_xlabel("Epochs")
     ax1.set_ylabel("Loss")
+    ax1.set_title(f'Learning Rate: {learning_rate}')
     ax1.legend()
 
     # Plot error
@@ -269,13 +271,16 @@ if __name__ == "__main__":
     (x_train, y_train), (x_test, y_test) = load_2_7_mnist()
     
     # Gradient Descent 
-    history_gd = model.train(x_train, y_train, x_test, y_test, learning_rate=0.01, epochs=500, batch_size=x_train.shape[0])
-    plot_loss_and_error(history_gd)
+    learning_rate_gd = 0.5
+    history_gd = model.train(x_train, y_train, x_test, y_test, learning_rate=learning_rate_gd , epochs=30, batch_size=x_train.shape[0])
+    plot_loss_and_error(history_gd, learning_rate=learning_rate_gd )
 
     # Stochastic Gradient Descent - Batch Size 1
-    history_sgd_batch1 = model.train(x_train, y_train, x_test, y_test, learning_rate=0.01, epochs=500, batch_size=1)
-    plot_loss_and_error(history_sgd_batch1)
+    learning_rate_sgd_batch1 = 0.001
+    history_sgd_batch1 = model.train(x_train, y_train, x_test, y_test, learning_rate=learning_rate_sgd_batch1 , epochs=30, batch_size=1)
+    plot_loss_and_error(history_sgd_batch1, learning_rate=learning_rate_sgd_batch1 )
 
      # Stochastic Gradient Descent - Batch Size 100
-    history_sgd_batch100 = model.train(x_train, y_train, x_test, y_test, learning_rate=0.01, epochs=500, batch_size=100)
-    plot_loss_and_error(history_sgd_batch100)
+    learning_rate_sgd_batch100 = 0.01
+    history_sgd_batch100 = model.train(x_train, y_train, x_test, y_test, learning_rate=learning_rate_sgd_batch100, epochs=30, batch_size=100)
+    plot_loss_and_error(history_sgd_batch100, learning_rate=learning_rate_sgd_batch100)

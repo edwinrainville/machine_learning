@@ -25,7 +25,22 @@ def step(
         Tuple[np.ndarray, float]: Tuple with 2 entries. First represents updated weight vector, second represents bias.
     
     """
-    raise NotImplementedError("Your Code Goes Here")
+    error_vec = (np.matmul(X, weight) + bias) - y
+    sum_error = np.sum(error_vec)
+    bias += -(2 * eta * sum_error)
+    weight += -(2 * eta * np.matmul(np.transpose(X), error_vec))
+
+    # Create sparse solution for weights
+    reg_step = 2 * eta * _lambda
+    negative_weight_inds = weight < -reg_step
+    zero_inds = np.logical_and(weight > -reg_step, weight < reg_step) 
+    positive_weight_inds = weight > reg_step
+
+    weight[negative_weight_inds] = weight[negative_weight_inds] + reg_step
+    weight[positive_weight_inds] = weight[positive_weight_inds] - reg_step
+    weight[zero_inds] = 0
+    
+    return weight, bias
 
 
 @problem.tag("hw2-A")
@@ -44,8 +59,9 @@ def loss(
     Returns:
         float: value of the loss function
     """
-    raise NotImplementedError("Your Code Goes Here")
-
+    sum_square_error = np.sum(((np.matmul(X, weight) + bias) - y)**2)
+    reg_weight = _lambda * np.sum(np.abs(weight))
+    return sum_square_error + reg_weight
 
 @problem.tag("hw2-A", start_line=5)
 def train(
@@ -92,17 +108,24 @@ def train(
     if start_weight is None:
         start_weight = np.zeros(X.shape[1])
         start_bias = 0
-    old_w: Optional[np.ndarray] = None
-    old_b: Optional[np.ndarray] = None
-    raise NotImplementedError("Your Code Goes Here")
+    old_w: Optional[np.ndarray] = start_weight
+    old_b: Optional[np.ndarray] = start_bias
+    
+    converged = False
+    while not converged:
+        new_w, new_b = step(X, y, old_w, old_b, _lambda, eta)
+        converged = convergence_criterion(new_w, old_w, new_b, old_b, convergence_delta=0.1)
+        old_w = np.copy(new_w)
+        old_b = np.copy(new_b)
 
+    return new_w, new_b
 
 @problem.tag("hw2-A")
 def convergence_criterion(
     weight: np.ndarray, old_w: np.ndarray, bias: float, old_b: float, convergence_delta: float
 ) -> bool:
     """Function determining whether weight has converged or not.
-    It should calculate the maximum absolute change between weight and old_w vector, and compate it to convergence delta.
+    It should calculate the maximum absolute change between weight and old_w vector, and compare it to convergence delta.
 
     Args:
         weight (np.ndarray): Weight from current iteration of coordinate gradient descent.
@@ -112,7 +135,13 @@ def convergence_criterion(
     Returns:
         bool: False, if weight has not converged yet. True otherwise.
     """
-    raise NotImplementedError("Your Code Goes Here")
+    weight_diff = np.max(np.abs(weight - old_w))
+    if weight_diff > convergence_delta:
+        converged = False
+    else:
+        converged = True
+
+    return converged
 
 
 @problem.tag("hw2-A")
@@ -120,8 +149,51 @@ def main():
     """
     Use all of the functions above to make plots.
     """
-    raise NotImplementedError("Your Code Goes Here")
+    # dimensions of synthetic data
+    n = 500
+    d = 1000
+    k = 100
 
+    # create synthetic dataset
+    x_dist_obj = np.random.RandomState(seed=446)
+    x = x_dist_obj.chisquare(100, (n,d))
+    w = np.zeros(d)
+    w[:100] = np.arange(1, 101)/k
+    noise_variance = 1
+    noise_obj = np.random.RandomState(seed=446)
+    noise = noise_obj.normal(0, noise_variance, n)
+    y = np.matmul(x, w) + noise
+
+    # normalize data
+    x_standard = (x - np.mean(x, axis=0))/np.std(x, axis=0)
+
+    # maximum regularization value
+    _lambda_max = np.max(2 * np.abs(np.matmul(np.transpose(x_standard), (y - np.mean(y)))))
+
+    # compute weights for differing regularization
+    nonzero_weights = []
+    weights = []
+    false_discovery_rate = []
+    true_positive_rate = []
+    regularization_vals = []
+    for _lambda in np.flip(np.geomspace(_lambda_max, 0.01, num=100)):
+        weight, bias = train(x_standard, y, _lambda)
+        nonzero_weights.append(np.count_nonzero(weight))
+        false_discovery_rate.append(np.count_nonzero(weight[k+1:])/ np.count_nonzero(weight))
+        true_positive_rate.append(np.count_nonzero(weight[:k+1])/k)
+        regularization_vals.append(_lambda)
+
+    fig, ax = plt.subplots()
+    ax.semilogx(regularization_vals, nonzero_weights)
+    ax.set_xlabel('Regularization Value')
+    ax.set_ylabel('Number of Non-Zero Weights')
+    plt.show()
+
+    fig, ax = plt.subplots()
+    ax.scatter(false_discovery_rate, true_positive_rate, color='k')
+    ax.set_xlabel('False Discovery Rate')
+    ax.set_ylabel('True Positive Rate')
+    plt.show()
 
 if __name__ == "__main__":
     main()
