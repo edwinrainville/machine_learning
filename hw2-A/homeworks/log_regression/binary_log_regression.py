@@ -271,16 +271,16 @@ if __name__ == "__main__":
     (x_train, y_train), (x_test, y_test) = load_2_7_mnist()
     
     # Gradient Descent 
-    learning_rate_gd = 0.5
+    learning_rate_gd = 0.1
     history_gd = model.train(x_train, y_train, x_test, y_test, learning_rate=learning_rate_gd , epochs=30, batch_size=x_train.shape[0])
     plot_loss_and_error(history_gd, learning_rate=learning_rate_gd )
 
     # Stochastic Gradient Descent - Batch Size 1
-    learning_rate_sgd_batch1 = 0.001
+    learning_rate_sgd_batch1 = 0.0001
     history_sgd_batch1 = model.train(x_train, y_train, x_test, y_test, learning_rate=learning_rate_sgd_batch1 , epochs=30, batch_size=1)
     plot_loss_and_error(history_sgd_batch1, learning_rate=learning_rate_sgd_batch1 )
 
      # Stochastic Gradient Descent - Batch Size 100
-    learning_rate_sgd_batch100 = 0.01
+    learning_rate_sgd_batch100 = 0.001
     history_sgd_batch100 = model.train(x_train, y_train, x_test, y_test, learning_rate=learning_rate_sgd_batch100, epochs=30, batch_size=100)
     plot_loss_and_error(history_sgd_batch100, learning_rate=learning_rate_sgd_batch100)

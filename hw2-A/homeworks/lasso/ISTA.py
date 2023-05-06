@@ -27,20 +27,20 @@ def step(
     """
     error_vec = (np.matmul(X, weight) + bias) - y
     sum_error = np.sum(error_vec)
-    bias += -(2 * eta * sum_error)
-    weight += -(2 * eta * np.matmul(np.transpose(X), error_vec))
+    new_bias = bias - (2 * eta * sum_error)
+    new_weight = weight - (2 * eta * np.matmul(np.transpose(X), error_vec))
 
     # Create sparse solution for weights
     reg_step = 2 * eta * _lambda
-    negative_weight_inds = weight < -reg_step
-    zero_inds = np.logical_and(weight > -reg_step, weight < reg_step) 
-    positive_weight_inds = weight > reg_step
+    negative_weight_inds = new_weight <= -reg_step
+    zero_inds = np.logical_and(new_weight > -reg_step, new_weight < reg_step) 
+    positive_weight_inds = new_weight >= reg_step
 
-    weight[negative_weight_inds] = weight[negative_weight_inds] + reg_step
-    weight[positive_weight_inds] = weight[positive_weight_inds] - reg_step
-    weight[zero_inds] = 0
+    new_weight[negative_weight_inds] = new_weight[negative_weight_inds] + reg_step
+    new_weight[positive_weight_inds] = new_weight[positive_weight_inds] - reg_step
+    new_weight[zero_inds] = 0
     
-    return weight, bias
+    return new_weight, new_bias
 
 
 @problem.tag("hw2-A")
@@ -106,7 +106,7 @@ def train(
                 - You will use bias in next problem.
     """
     if start_weight is None:
-        start_weight = np.zeros(X.shape[1])
+        start_weight = np.ones(X.shape[1])
         start_bias = 0
     old_w: Optional[np.ndarray] = start_weight
     old_b: Optional[np.ndarray] = start_bias
@@ -114,7 +114,7 @@ def train(
     converged = False
     while not converged:
         new_w, new_b = step(X, y, old_w, old_b, _lambda, eta)
-        converged = convergence_criterion(new_w, old_w, new_b, old_b, convergence_delta=0.1)
+        converged = convergence_criterion(new_w, old_w, new_b, old_b, convergence_delta)
         old_w = np.copy(new_w)
         old_b = np.copy(new_b)
 
@@ -136,10 +136,10 @@ def convergence_criterion(
         bool: False, if weight has not converged yet. True otherwise.
     """
     weight_diff = np.max(np.abs(weight - old_w))
-    if weight_diff > convergence_delta:
-        converged = False
-    else:
+    if weight_diff < convergence_delta:
         converged = True
+    else:
+        converged = False
 
     return converged
 
@@ -172,15 +172,21 @@ def main():
 
     # compute weights for differing regularization
     nonzero_weights = []
-    weights = []
     false_discovery_rate = []
     true_positive_rate = []
     regularization_vals = []
-    for _lambda in np.flip(np.geomspace(_lambda_max, 0.01, num=100)):
-        weight, bias = train(x_standard, y, _lambda)
+    weight = np.ones(x_standard.shape[1])
+    bias = 0
+    for _lambda in np.flip(np.geomspace(0.01, _lambda_max, num=100)):
+        weight, bias = train(x_standard, y, _lambda=_lambda, eta=0.0001, convergence_delta=0.1, 
+                             start_weight=weight, start_bias=bias)
         nonzero_weights.append(np.count_nonzero(weight))
-        false_discovery_rate.append(np.count_nonzero(weight[k+1:])/ np.count_nonzero(weight))
-        true_positive_rate.append(np.count_nonzero(weight[:k+1])/k)
+        if np.count_nonzero(weight) == 0:
+            false_discovery_rate.append(0)
+        else:
+            false_discovery_rate.append(np.count_nonzero(weight[(k+1):])/ np.count_nonzero(weight))
+
+        true_positive_rate.append(np.count_nonzero(weight[:(k+1)])/k)
         regularization_vals.append(_lambda)
 
     fig, ax = plt.subplots()
@@ -190,9 +196,13 @@ def main():
     plt.show()
 
     fig, ax = plt.subplots()
-    ax.scatter(false_discovery_rate, true_positive_rate, color='k')
+    ax.plot(false_discovery_rate, true_positive_rate, color='k', label='LASSO Classifier')
     ax.set_xlabel('False Discovery Rate')
     ax.set_ylabel('True Positive Rate')
+    ax.plot([0,1], [0,1], color='r', label='Random Classifier')
+    ax.set_xlim(-0.1,1.1)
+    ax.set_ylim(-0.1,1.1)
+    ax.legend()
     plt.show()
 
 if __name__ == "__main__":
