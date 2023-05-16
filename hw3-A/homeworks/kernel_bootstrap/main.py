@@ -41,7 +41,8 @@ def poly_kernel(x_i: np.ndarray, x_j: np.ndarray, d: int) -> np.ndarray:
             They apply an operation similar to xx^T (if x is a vector), but not necessarily with multiplication.
             To use it simply append .outer to function. For example: np.add.outer, np.divide.outer
     """
-    raise NotImplementedError("Your Code Goes Here")
+    kernel_poly = np.power((np.outer(x_i, x_j) + 1), d)
+    return kernel_poly
 
 
 @problem.tag("hw3-A")
@@ -66,7 +67,8 @@ def rbf_kernel(x_i: np.ndarray, x_j: np.ndarray, gamma: float) -> np.ndarray:
             They apply an operation similar to xx^T (if x is a vector), but not necessarily with multiplication.
             To use it simply append .outer to function. For example: np.add.outer, np.divide.outer
     """
-    raise NotImplementedError("Your Code Goes Here")
+    kernel_rbf = np.exp(-gamma * np.power(np.subtract.outer(x_i, x_j), 2))
+    return kernel_rbf    
 
 
 @problem.tag("hw3-A")
