@@ -91,7 +91,9 @@ def train(
     Returns:
         np.ndarray: Array of shape (n,) containing alpha hat as described in the pdf.
     """
-    raise NotImplementedError("Your Code Goes Here")
+    kernel = kernel_function(x, x, kernel_param)
+    alpha_hat = np.linalg.solve((np.matmul(np.transpose(kernel), kernel) + _lambda*kernel), np.matmul(np.transpose(y), kernel))
+    return alpha_hat
 
 
 @problem.tag("hw3-A", start_line=1)
@@ -122,7 +124,32 @@ def cross_validation(
         float: Average loss of trained function on validation sets across folds.
     """
     fold_size = len(x) // num_folds
-    raise NotImplementedError("Your Code Goes Here")
+
+    # Reshape the data to access data in folds
+    x_folded = x.reshape((fold_size, num_folds))
+    y_folded = y.reshape((fold_size, num_folds))
+    
+    loss = []
+    for n in range(num_folds):
+        # test data
+        x_train = np.delete(x_folded, n, axis=1).flatten()
+        y_train = np.delete(y_folded, n, axis=1).flatten()
+
+        # Validation data
+        x_validation = x_folded[:,n].flatten()
+        y_validation = y_folded[:,n].flatten()
+
+        # Train the model with given parameters
+        alpha_hat = train(x_train, y_train, kernel_function, kernel_param, _lambda)
+
+        # Compute the kernel function values
+        kernel_validation = kernel_function(x_train, x_validation, kernel_param)
+        y_predicted = np.matmul(alpha_hat, kernel_validation)
+        mse = np.mean(np.square(y_predicted - y_validation))
+        loss.append(mse)
+
+    avg_loss = np.mean(loss)
+    return avg_loss
 
 
 @problem.tag("hw3-A")
@@ -150,7 +177,23 @@ def rbf_param_search(
         - If using random search we recommend sampling lambda from distribution 10**i, where i~Unif(-5, -1)
         - If using grid search we recommend choosing possible lambdas to 10**i, where i=linspace(-5, -1)
     """
-    raise NotImplementedError("Your Code Goes Here")
+    # Train the polynomial kernel model
+    gamma = 1/np.median(np.square(np.subtract.outer(x, x)))
+    _lambda_range = np.geomspace(10**-5, 10**-1, 50)
+
+    rbf_loss = []
+    rbf_loss_optimal = 10**10
+    _lambda_optimal = 0
+    # Search all parameters with a grid search method
+    for _lambda in _lambda_range:
+        rbf_loss_new = cross_validation(x, y, kernel_function=rbf_kernel, kernel_param=gamma, _lambda=_lambda, num_folds=num_folds)
+        rbf_loss.append(rbf_loss_new)
+
+        if rbf_loss_new < rbf_loss_optimal:
+            _lambda_optimal = _lambda
+            rbf_loss_optimal = rbf_loss_new
+
+    return (_lambda_optimal, gamma)
 
 
 @problem.tag("hw3-A")
@@ -181,7 +224,26 @@ def poly_param_search(
         - If using grid search we recommend choosing possible lambdas to 10**i, where i=linspace(-5, -1)
             and possible ds to [5, 6, ..., 24, 25]
     """
-    raise NotImplementedError("Your Code Goes Here")
+    # Train the polynomial kernel model
+    d_range = np.arange(5, 25, 1)
+    _lambda_range = np.geomspace(10**-5, 10**-1, 50)
+
+    poly_loss = []
+    poly_loss_optimal = 10**10
+    d_optimal = 0
+    _lambda_optimal = 0
+    # Search all parameters with a grid search method
+    for d in d_range:
+        for _lambda in _lambda_range:
+            poly_loss_new = cross_validation(x, y, kernel_function=poly_kernel, kernel_param=d, _lambda=_lambda, num_folds=num_folds)
+            poly_loss.append(poly_loss_new)
+
+            if poly_loss_new < poly_loss_optimal:
+                d_optimal = d
+                _lambda_optimal = _lambda
+                poly_loss_optimal = poly_loss_new
+
+    return (_lambda_optimal, d_optimal)
 
 @problem.tag("hw3-A", start_line=1)
 def main():
@@ -199,8 +261,48 @@ def main():
             To avoid this call plt.ylim(-6, 6).
     """
     (x_30, y_30), (x_300, y_300), (x_1000, y_1000) = load_dataset("kernel_bootstrap")
-    raise NotImplementedError("Your Code Goes Here")
 
+    # Find optimal parameters for poly kernel
+    (_lambda_optimal_poly, d_optimal) = poly_param_search(x=x_30, y=y_30, num_folds=x_30.size)
+    print(f'For the polynomial kernel, the optimal value of lambda = {_lambda_optimal_poly} and' \
+          f'the optimal value for d = {np.round(d_optimal, 2)}.')
+
+    # Find optimal parameters for RBF kernel
+    (_lambda_optimal_rbf, gamma_optimal) = rbf_param_search(x=x_30, y=y_30, num_folds=x_30.size)
+    print(f'For the RBF kernel, the optimal value of lambda = {_lambda_optimal_rbf} and' \
+          f'the optimal value for gamma = {np.round(gamma_optimal, 2)}.')
+
+    # Compute values of the true function
+    x_range = np.arange(0,1,0.001)
+    f_true_vals = f_true(x_range)
+
+    # Train the Polynomial model with optimal parameters
+    alpha_hat_poly = train(x_30, y_30, kernel_function=poly_kernel, kernel_param=d_optimal, _lambda=_lambda_optimal_poly)
+    kernel_poly = poly_kernel(x_30, x_range, d_optimal)
+    y_predicted_poly = np.matmul(np.transpose(alpha_hat_poly), kernel_poly)
+    mse_poly = np.mean(np.square(y_predicted_poly - f_true_vals))
+
+    # Train the RBF model with optimal parameters
+    alpha_hat_rbf = train(x_30, y_30, kernel_function=rbf_kernel, kernel_param=gamma_optimal, _lambda=_lambda_optimal_rbf)
+    kernel_rbf = rbf_kernel(x_30, x_range, gamma_optimal)
+    y_predicted_rbf = np.matmul(np.transpose(alpha_hat_rbf), kernel_rbf)
+    mse_rbf = np.mean(np.square(y_predicted_rbf - f_true_vals))
+
+    fig, (ax1, ax2) = plt.subplots(nrows=2, figsize=(5,5))
+    ax1.plot(x_range, f_true_vals, label='True Function')
+    ax1.plot(x_range, y_predicted_poly, label=f'Polynomial Kernel Prediction - mse {np.round(mse_poly, 3)}')
+    ax1.scatter(x_30, y_30)
+    ax1.legend()
+    ax1.set_xlabel('X')
+    ax1.set_ylabel('Y')
+
+    ax2.plot(x_range, f_true_vals, label='True Function')
+    ax2.plot(x_range, y_predicted_rbf, label=f'RBF Kernel Prediction - mse {np.round(mse_rbf, 3)}')
+    ax2.scatter(x_30, y_30)
+    ax2.legend()
+    ax2.set_xlabel('X')
+    ax2.set_ylabel('Y')
+    plt.show()
 
 if __name__ == "__main__":
     main()

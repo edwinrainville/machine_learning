@@ -45,7 +45,9 @@ def accuracy_score(model: nn.Module, dataloader: DataLoader) -> float:
         - This is similar to CrossEntropy accuracy_score function,
             but there will be differences due to slightly different targets in dataloaders.
     """
-    raise NotImplementedError("Your Code Goes Here")
+    x_test, y_test = next(iter(dataloader))
+    y_pred = model(x_test)
+    return torch.sum(torch.argmax(y_pred, dim=1) == torch.argmax(y_test, dim=1)).item()/y_test.shape[0]
 
 
 @problem.tag("hw3-A")
@@ -87,9 +89,59 @@ def mse_parameter_search(
                 }
             }
     """
-    raise NotImplementedError("Your Code Goes Here")
+    n, d = dataset_train.tensors[0].shape
+    train_loader = DataLoader(dataset_train, batch_size=32, shuffle=True)
+    val_loader = DataLoader(dataset_val, batch_size=32, shuffle=True)
 
+    # Set the fixed hyperparameters 
+    num_epochs = 200
+    
+    # linear, one layer model
+    model_linear = LinearLayer(dim_in=d, dim_out=2)
 
+    # one linear hidden layer with sigmoid activation
+    model_sigmoid = nn.Sequential(LinearLayer(dim_in=d, dim_out=2), SigmoidLayer())
+
+    # one linear hidden layer with relu activation
+    model_relu = nn.Sequential(LinearLayer(dim_in=d, dim_out=2), ReLULayer())
+
+    # two linear hidden layers with sigmoid then relu activation
+    model_sigmoid_then_relu = nn.Sequential(LinearLayer(dim_in=d, dim_out=2), SigmoidLayer(),
+                                            LinearLayer(dim_in=2, dim_out=2), ReLULayer()) 
+    
+    # two linear hidden layers with relu then sigmoid activation
+    model_relu_then_sigmoid = nn.Sequential(LinearLayer(dim_in=d, dim_out=2), ReLULayer(),
+                                            LinearLayer(dim_in=2, dim_out=2), SigmoidLayer()) 
+    
+    # make a list of models
+    models = [model_linear, model_sigmoid, model_relu, model_sigmoid_then_relu, model_relu_then_sigmoid]
+    model_names = ['linear', 'sigmoid', 'relu', 'sigmoid then relu', 'relu then sigmoid']
+
+    # loop through all models to compute the error 
+    model_loss_mse = []
+    for model in models:
+        model_loss_mse.append(train(train_loader=train_loader, model=model, criterion=MSELossLayer(), 
+                                optimizer=SGDOptimizer, val_loader=val_loader, epochs=num_epochs))
+
+     # plot the train and validation loss 
+    model_colors = ['k', 'r', 'b', 'g', 'y']
+    fig, ax = plt.subplots()
+    for n in range(len(models)):
+        ax.plot(model_loss_mse[n]['train'], label=f'Train - {model_names[n]}', color=model_colors[n], linestyle='dashed')
+        ax.plot(model_loss_mse[n]['val'], label=f'Validation - {model_names[n]}', color=model_colors[n])
+    ax.legend()
+    ax.set_xlabel('Epochs')
+    ax.set_ylabel('MSE Loss')
+    plt.show()
+
+    # save the model loss and model
+    model_history = {}
+    for n in range(len(models)):
+        model_history[model_names[n]] = model_loss_mse[n]
+        model_history[model_names[n]]['model'] = models[n]
+
+    return model_history
+    
 @problem.tag("hw3-A", start_line=11)
 def main():
     """
@@ -108,17 +160,25 @@ def main():
     """
     (x, y), (x_val, y_val), (x_test, y_test) = load_dataset("xor")
 
-    dataset_train = TensorDataset(torch.from_numpy(x), torch.from_numpy(to_one_hot(y)))
+    dataset_train = TensorDataset(torch.from_numpy(x).float(), 
+                                  torch.from_numpy(to_one_hot(y)).float())
     dataset_val = TensorDataset(
-        torch.from_numpy(x_val), torch.from_numpy(to_one_hot(y_val))
+        torch.from_numpy(x_val).float(), torch.from_numpy(to_one_hot(y_val)).float()
     )
     dataset_test = TensorDataset(
-        torch.from_numpy(x_test), torch.from_numpy(to_one_hot(y_test))
+        torch.from_numpy(x_test).float(), torch.from_numpy(to_one_hot(y_test)).float()
     )
 
     mse_configs = mse_parameter_search(dataset_train, dataset_val)
-    raise NotImplementedError("Your Code Goes Here")
-
+    
+    # Plot model guesses using the model 
+    test_loader = DataLoader(dataset_test, batch_size=x_test.shape[0], shuffle=True)
+    plot_model_guesses(test_loader, mse_configs['relu then sigmoid']['model'], 
+                       'Two Hidden Layers - ReLu then Sigmoid Activation NN')
+    
+    # compute accuracy of the best model
+    acc = accuracy_score(mse_configs['relu then sigmoid']['model'], test_loader)
+    print(f'The accuracy of the relu then sigmoid model is {acc}.')
 
 def to_one_hot(a: np.ndarray) -> np.ndarray:
     """Helper function. Converts data from categorical to one-hot encoded.
@@ -137,3 +197,4 @@ def to_one_hot(a: np.ndarray) -> np.ndarray:
 
 if __name__ == "__main__":
     main()
+

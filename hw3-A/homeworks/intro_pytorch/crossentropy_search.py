@@ -63,7 +63,57 @@ def crossentropy_parameter_search(
                 }
             }
     """
-    raise NotImplementedError("Your Code Goes Here")
+    n, d = dataset_train.tensors[0].shape
+    train_loader = DataLoader(dataset_train, batch_size=32, shuffle=True)
+    val_loader = DataLoader(dataset_val, batch_size=32, shuffle=True)
+
+    # Set the fixed hyperparameters 
+    num_epochs = 100
+    
+    # linear, one layer model
+    model_linear = LinearLayer(dim_in=d, dim_out=d)
+
+    # one linear hidden layer with sigmoid activation
+    model_sigmoid = nn.Sequential(LinearLayer(dim_in=d, dim_out=2), SigmoidLayer())
+
+    # one linear hidden layer with relu activation
+    model_relu = nn.Sequential(LinearLayer(dim_in=d, dim_out=2), ReLULayer())
+
+    # two linear hidden layers with sigmoid then relu activation
+    model_sigmoid_then_relu = nn.Sequential(LinearLayer(dim_in=d, dim_out=2), SigmoidLayer(),
+                                            LinearLayer(dim_in=2, dim_out=2), ReLULayer()) 
+    
+    # two linear hidden layers with relu then sigmoid activation
+    model_relu_then_sigmoid = nn.Sequential(LinearLayer(dim_in=d, dim_out=2), ReLULayer(),
+                                            LinearLayer(dim_in=2, dim_out=2), SigmoidLayer()) 
+    
+    # make a list of models
+    models = [model_linear, model_sigmoid, model_relu, model_sigmoid_then_relu, model_relu_then_sigmoid]
+    model_names = ['linear', 'sigmoid', 'relu', 'sigmoid then relu', 'relu then sigmoid']
+    model_colors = ['k', 'r', 'b', 'g', 'y']
+
+    # loop through all models to compute the error 
+    model_loss_crossentropy = []
+    for model in models:
+        model_loss_crossentropy.append(train(train_loader=train_loader, model=model, criterion=CrossEntropyLossLayer(), 
+                                optimizer=SGDOptimizer, val_loader=val_loader, epochs=num_epochs))
+    
+    fig, ax = plt.subplots()
+    for n in range(len(models)):
+        ax.plot(model_loss_crossentropy[n]['train'], label=f'Train - {model_names[n]}', color=model_colors[n], linestyle='dashed')
+        ax.plot(model_loss_crossentropy[n]['val'], label=f'Validation - {model_names[n]}', color=model_colors[n])
+    ax.legend()
+    ax.set_xlabel('Epochs')
+    ax.set_ylabel('Cross Entropy Loss')
+    plt.show()
+
+    # save the model loss and model
+    model_history = {}
+    for n in range(len(models)):
+        model_history[model_names[n]] = model_loss_crossentropy[n]
+        model_history[model_names[n]]['model'] = models[n]
+
+    return model_history
 
 
 @problem.tag("hw3-A")
@@ -86,7 +136,9 @@ def accuracy_score(model, dataloader) -> float:
         - This is similar to MSE accuracy_score function,
             but there will be differences due to slightly different targets in dataloaders.
     """
-    raise NotImplementedError("Your Code Goes Here")
+    x_test, y_test = next(iter(dataloader))
+    y_pred = model(x_test)
+    return torch.sum(torch.argmax(y_pred, dim=1) == y_test).item()/y_test.shape[0]
 
 
 @problem.tag("hw3-A", start_line=7)
@@ -107,13 +159,20 @@ def main():
     """
     (x, y), (x_val, y_val), (x_test, y_test) = load_dataset("xor")
 
-    dataset_train = TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
-    dataset_val = TensorDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
-    dataset_test = TensorDataset(torch.from_numpy(x_test), torch.from_numpy(y_test))
+    dataset_train = TensorDataset(torch.from_numpy(x).float(), torch.from_numpy(y))
+    dataset_val = TensorDataset(torch.from_numpy(x_val).float(), torch.from_numpy(y_val))
+    dataset_test = TensorDataset(torch.from_numpy(x_test).float(), torch.from_numpy(y_test))
 
     ce_configs = crossentropy_parameter_search(dataset_train, dataset_val)
-    raise NotImplementedError("Your Code Goes Here")
 
-
+    # Plot model guesses using the model 
+    test_loader = DataLoader(dataset_test, batch_size=x_test.shape[0], shuffle=True)
+    plot_model_guesses(test_loader, ce_configs['relu']['model'], 
+                       'relu NN')
+    
+    # compute accuracy of the best model
+    acc = accuracy_score(ce_configs['relu']['model'], test_loader)
+    print(f'The accuracy of the relu layer model is {acc}.')
+    
 if __name__ == "__main__":
     main()

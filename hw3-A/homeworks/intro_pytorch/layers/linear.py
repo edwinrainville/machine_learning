@@ -31,7 +31,8 @@ class LinearLayer(nn.Module):
             - Make use of pytorch documentation: https://pytorch.org/docs/stable/index.html
         """
         super().__init__()
-        raise NotImplementedError("Your Code Goes Here")
+        self.weight = nn.parameter.Parameter(torch.randn((dim_in, dim_out), generator=generator, dtype=torch.float))
+        self.bias = nn.parameter.Parameter(torch.randn(dim_out, generator=generator, dtype=torch.float))
 
     @problem.tag("hw3-A")
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -45,4 +46,4 @@ class LinearLayer(nn.Module):
             torch.Tensor: More specifically a torch.FloatTensor, with shape of (n, dim_out).
                 Output data.
         """
-        raise NotImplementedError("Your Code Goes Here")
+        return torch.matmul(x, self.weight) + self.bias

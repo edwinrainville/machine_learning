@@ -50,7 +50,40 @@ def train(
         - Make sure to load the model parameters corresponding to model with the best validation loss (if val_loader is provided).
             You might want to look into state_dict: https://pytorch.org/tutorials/beginner/saving_loading_models.html
     """
-    raise NotImplementedError("Your Code Goes Here")
+    # initialize the optimizer
+    optimizer_inst = optimizer(model.parameters(), lr=0.001)
+
+    # Loop through all epochs and adjust weights for each epoch
+    num_batches = len(train_loader)
+    train_loss = []
+    val_loss = []
+    for epoch in range(epochs):
+        train_loss_batch_average = 0
+        val_loss_batch_average = 0
+        for batch in range(num_batches):
+            # access data from dataloader
+            x_train, y_train = next(iter(train_loader))
+            x_val, y_val = next(iter(val_loader))
+
+            # zero the gradient function 
+            optimizer_inst.zero_grad()
+
+            # compute the loss for training and validation data
+            train_loss_individual = criterion(model(x_train), y_train)
+            
+            # take gradient step for this epoch to update the model weight and bias
+            train_loss_individual.backward()
+            optimizer_inst.step()
+
+            # add the train and validation loss values for each batch 
+            train_loss_batch_average += train_loss_individual.detach().numpy()
+            val_loss_batch_average += criterion(model(x_val), y_val).detach().numpy()
+
+        # append the batch averaged loss values
+        train_loss.append(train_loss_batch_average/num_batches)
+        val_loss.append(val_loss_batch_average/num_batches)
+
+    return {'train':train_loss, 'val':val_loss}
 
 
 def plot_model_guesses(
